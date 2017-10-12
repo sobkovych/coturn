@@ -1015,6 +1015,12 @@ int stun_set_allocate_request_str(u08bits* buf, size_t *len, u32bits lifetime, i
 	  }
   }
 
+  //SOFTWARE
+  {
+    const char *value = "Vidyo SDK TURN Client 4.1.16.8";
+    if(stun_attr_add_str(buf,len,STUN_ATTRIBUTE_SOFTWARE,(const u08bits*)value,strlen(value))<0) return -1;
+  }
+
   return 0;
 }
 
