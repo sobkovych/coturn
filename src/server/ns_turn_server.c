@@ -3149,12 +3149,10 @@ static int handle_turn_create_permission(turn_turnserver *server,
 
 static int need_stun_authentication(turn_turnserver *server, ts_ur_super_session *ss)
 {
-	UNUSED_ARG(ss);
-
 	if(server) {
 		switch(server->ct) {
 		case TURN_CREDENTIALS_LONG_TERM:
-			return 1;
+			return (ss && ss->suppress_auth_challenge) ? 0 : 1;
 		default:
 			;
 		};
@@ -3246,6 +3244,28 @@ static int check_stun_auth(turn_turnserver *server,
 
 	if(!need_stun_authentication(server, ss))
 		return 0;
+
+	/* SOFTWARE ATTR: */
+	{
+		ss->suppress_auth_challenge = 0;
+
+		stun_attr_ref sar = stun_attr_get_first_by_type_str(ioa_network_buffer_data(in_buffer->nbh),
+								  ioa_network_buffer_get_size(in_buffer->nbh),
+								  STUN_ATTRIBUTE_SOFTWARE);
+		if(sar) {
+			u08bits software[STUN_MAX_SOFTWARE_SIZE+1];
+			alen = min((size_t)stun_attr_get_len(sar),sizeof(software)-1);
+			ns_bcopy(stun_attr_get_value(sar),software,alen);
+			software[alen]=0;
+			if (strstr((const char*)software, "Vidyo SDK TURN Client")) {
+				ss->suppress_auth_challenge = 1;
+			}
+			if (server->verbose) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_WARNING, "INFO: got SOFTWARE attr. \"%s\", suppress_auth_challenge=%d\n", (char*)software, ss->suppress_auth_challenge);
+			}
+			return 0;
+		}
+	}
 
 	int new_nonce = 0;
 
