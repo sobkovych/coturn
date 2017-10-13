@@ -145,7 +145,8 @@ TURN_CREDENTIALS_NONE, /* ct */
 ///////////// Users DB //////////////
 { (TURN_USERDB_TYPE)0, {"\0"}, {0,NULL, {NULL,0}} },
 ///////////// CPUs //////////////////
-DEFAULT_CPUS_NUMBER
+DEFAULT_CPUS_NUMBER,
+""
 };
 
 //////////////// OpenSSL Init //////////////////////
@@ -614,6 +615,8 @@ static char Usage[] = "Usage: turnserver [options]\n"
 " --cli-max-output-sessions			Maximum number of output sessions in ps CLI command.\n"
 "						This value can be changed on-the-fly in CLI. The default value is 256.\n"
 " --ne=[1|2|3]					Set network engine type for the process (for internal purposes).\n"
+" --auth-bypass-pattern=<pattern>		Allow bypass challenge requests that including the Software attribute\n"
+"						containing pattern value. Be aware NON-STANDARD OPTION.\n"
 " -h						Help\n"
 "\n"
 " For more information, see the wiki pages:\n"
@@ -744,7 +747,8 @@ enum EXTRA_OPTS {
 	SERVER_NAME_OPT,
 	OAUTH_OPT,
 	PROD_OPT,
-	NO_HTTP_OPT
+	NO_HTTP_OPT,
+	AUTH_BYPASS_PATTERN_OPT
 };
 
 struct myoption {
@@ -863,6 +867,7 @@ static const struct myoption long_options[] = {
 				{ "no-tlsv1", optional_argument, NULL, NO_TLSV1_OPT },
 				{ "no-tlsv1_1", optional_argument, NULL, NO_TLSV1_1_OPT },
 				{ "no-tlsv1_2", optional_argument, NULL, NO_TLSV1_2_OPT },
+				{ "auth-bypass-pattern", optional_argument, NULL, AUTH_BYPASS_PATTERN_OPT },
 				{ NULL, no_argument, NULL, 0 }
 };
 
@@ -1336,6 +1341,9 @@ static void set_option(int c, char *value)
 	case 'c':
 	case 'n':
 	case 'h':
+		break;
+	case AUTH_BYPASS_PATTERN_OPT:
+		STRCPY(turn_params.auth_bypass_pattern,value);
 		break;
 	default:
 		fprintf(stderr,"\n%s\n", Usage);
@@ -1940,6 +1948,9 @@ int main(int argc, char **argv)
 	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "Default realm: %s\n",get_realm(NULL)->options.name);
 	if(turn_params.oauth && turn_params.oauth_server_name[0]) {
 		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "oAuth server name: %s\n",turn_params.oauth_server_name);
+	}
+	if(turn_params.auth_bypass_pattern[0]) {
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "WARNING: Non-standard option, auth bypass pattern: %s\n",turn_params.auth_bypass_pattern);
 	}
 
 	optind = 0;

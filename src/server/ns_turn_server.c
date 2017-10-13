@@ -3152,7 +3152,7 @@ static int need_stun_authentication(turn_turnserver *server, ts_ur_super_session
 	if(server) {
 		switch(server->ct) {
 		case TURN_CREDENTIALS_LONG_TERM:
-			return (ss && ss->suppress_auth_challenge) ? 0 : 1;
+			return (ss && ss->bypass_auth_challenge) ? 0 : 1;
 		default:
 			;
 		};
@@ -3247,24 +3247,30 @@ static int check_stun_auth(turn_turnserver *server,
 
 	/* SOFTWARE ATTR: */
 	{
-		ss->suppress_auth_challenge = 0;
+		ss->bypass_auth_challenge = 0;
 
-		stun_attr_ref sar = stun_attr_get_first_by_type_str(ioa_network_buffer_data(in_buffer->nbh),
-								  ioa_network_buffer_get_size(in_buffer->nbh),
-								  STUN_ATTRIBUTE_SOFTWARE);
-		if(sar) {
-			u08bits software[STUN_MAX_SOFTWARE_SIZE+1];
-			alen = min((size_t)stun_attr_get_len(sar),sizeof(software)-1);
-			ns_bcopy(stun_attr_get_value(sar),software,alen);
-			software[alen]=0;
-			if (strstr((const char*)software, "Vidyo SDK TURN Client")) {
-				ss->suppress_auth_challenge = 1;
+		/* Proceed if auth bypass pattern is configured */
+		if (server->auth_bypass_pattern[0]) {
+			stun_attr_ref sar = stun_attr_get_first_by_type_str(ioa_network_buffer_data(in_buffer->nbh),
+									  ioa_network_buffer_get_size(in_buffer->nbh),
+									  STUN_ATTRIBUTE_SOFTWARE);
+			if(sar) {
+				u08bits software[STUN_MAX_SOFTWARE_SIZE+1];
+				alen = min((size_t)stun_attr_get_len(sar),sizeof(software)-1);
+				ns_bcopy(stun_attr_get_value(sar),software,alen);
+				software[alen]=0;
+				if (strstr((const char*)software, server->auth_bypass_pattern)) {
+					ss->bypass_auth_challenge = 1;
+				}
+				if (server->verbose) {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_WARNING, "compare SOFTWARE \"%s\" with pattern \"%s\", bypass_auth_challenge=%d\n", 
+						(char*)software, server->auth_bypass_pattern, ss->bypass_auth_challenge);
+				}
+				return 0;
 			}
-			if (server->verbose) {
-				TURN_LOG_FUNC(TURN_LOG_LEVEL_WARNING, "INFO: got SOFTWARE attr. \"%s\", suppress_auth_challenge=%d\n", (char*)software, ss->suppress_auth_challenge);
-			}
-			return 0;
+
 		}
+
 	}
 
 	int new_nonce = 0;
@@ -4847,7 +4853,8 @@ void init_turn_server(turn_turnserver* server,
 		send_turn_session_info_cb send_turn_session_info,
 		send_https_socket_cb send_https_socket,
 		allocate_bps_cb allocate_bps_func,
-		int oauth, const char* oauth_server_name, int use_http) {
+		int oauth, const char* oauth_server_name, int use_http,
+		const char* auth_bypass_pattern) {
 
 	if (!server)
 		return;
@@ -4915,6 +4922,8 @@ void init_turn_server(turn_turnserver* server,
 	server->allocate_bps_func = allocate_bps_func;
 
 	server->use_http = use_http;
+
+	server->auth_bypass_pattern = auth_bypass_pattern;
 
 	set_ioa_timer(server->e, 1, 0, timer_timeout_handler, server, 1, "timer_timeout_handler");
 }

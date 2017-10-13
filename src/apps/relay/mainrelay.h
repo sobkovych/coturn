@@ -306,6 +306,8 @@ typedef struct _turn_params_ {
 
   unsigned long cpus;
 
+  char auth_bypass_pattern[1025];
+
 } turn_params_t;
 
 extern turn_params_t turn_params;
