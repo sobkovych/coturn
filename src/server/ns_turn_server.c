@@ -3259,14 +3259,14 @@ static int check_stun_auth(turn_turnserver *server,
 				alen = min((size_t)stun_attr_get_len(sar),sizeof(software)-1);
 				ns_bcopy(stun_attr_get_value(sar),software,alen);
 				software[alen]=0;
+				if (server->verbose) {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_WARNING, "matching pattern \"%s\" with received SOFTWARE attr. \"%s\"\n",
+						server->auth_bypass_pattern, (char*)software);
+				}
 				if (strstr((const char*)software, server->auth_bypass_pattern)) {
 					ss->bypass_auth_challenge = 1;
+					return 0;
 				}
-				if (server->verbose) {
-					TURN_LOG_FUNC(TURN_LOG_LEVEL_WARNING, "compare SOFTWARE \"%s\" with pattern \"%s\", bypass_auth_challenge=%d\n", 
-						(char*)software, server->auth_bypass_pattern, ss->bypass_auth_challenge);
-				}
-				return 0;
 			}
 
 		}
